@@ -3,46 +3,61 @@ Option Explicit
 '@Folder(Database7.Controllers)
 'ControlManager
 
-'ControlManager objects are used to organize groups of controls.
-'Possibly connected to a single control to expose functionality
+'----Specification Notes-----
+    'ControlManager objects are used to organize groups of controls.
+    'Possibly connected to a single control to expose functionality
 
-'Add/remove/access ControlControllers
-'Add/remove/access Groups of Controllers ()
+    'Add/remove/access ControlControllers
+    'Add/remove/access Groups of Controllers ()
 
-'Need to define Control sourced events,
-'and child Manager sourced events.
+    'Need to define Control sourced events,
+    'and child Manager sourced events.
 
-'Manager level events must pass to the next level (FormManager),
-'   Or pass reraised as a control level event along to the Manager,
-'   passing the ControlController along if the manager's in a group.
-'
-'   Do this in the Controller's or Manager's code automatically if the config
-'   routes it to a specific level.
-'   (Like MouseOver events talking to the Mainform controller.)
+    'Manager level events must pass to the next level (FormManager),
+    '   Or pass reraised as a control level event along to the Manager,
+    '   passing the ControlController along if the manager's in a group.
+    '
+    '   Do this in the Controller's or Manager's code automatically if the config
+    '   routes it to a specific level.
+    '   (Like MouseOver events talking to the Mainform controller.)
 
 
-'-----Variables-----
-'ParentControllerGroup   (FormManeger.ControllerGroups)
-'ParentController        (Returns Controller, probably form)
+    '-----Variables-----
+    'TODO Consider making ParentManagers
+    '   The Manager would need to create a child manager to handle multiple parents.
+    '   Whereas storing a reference to a single parent would be easier to propigate events.
+    '   We'll see if it's neccessary.
 
-'blnIsTopLevelManager    (Is set in Form Code.)
+    'ObserversManager          (FormManeger.ControllerGroups)
+    'ParentGroupManager        (Not used atm.)
 
-'ParentManager           (Parent Manager if not top level)
-'TopLevelManager         (Manager of Main Form, passed down through constructors.)
+    'blnIsTopLevelManager    (Is set in Form Code.)
 
-'blnHasChildControls
-'blnHasChildManagers
+    'ParentManager           (Parent Manager if not top level)
+    'TopLevelManager         (Manager of Main Form, passed down through constructors.)
 
-'ChildControllerGroup    Controllers the object contains and manages.
-'ChildManagerGroups      Managers the object contains and manages
+    'blnHasChildControls
+    'blnHasChildManagers
 
-'----- ------
+    'ChildControllerGroup    Controllers the object contains and manages.
+    'ChildManagerGroups      Managers the object contains and manages
 
-'-----Methods------
-'AddControl
-'AddControlGroup
+    '----- ------
 
-Private ChildController() As ControlController  'Controller to pass the Manager as a controller?
+    '-----Methods------
+    'AddControl
+    'AddControlGroup
+'-----
+
+'Private ChildController() As ControlController  'To pass Manager as controller arg, cause no OOP?
+private ParentManager as controllermanager      'Parent Manager reference. | Maybe a group if multiple.
+private ChildControllers as controlcontroller()
+private ChildGUIControls as collection
+
+private MyTypeName as string
+private blnSameType as boolean      '
+private blnIsRegistered as boolean  'Registration Flag
+
 'TODO: this would solve the issue of tracking controller objects when elevating a manager's event.
 
 '-----[ Event definition ]-----------------------------------------------
@@ -72,6 +87,41 @@ Public Event BeforeUpdate(ByVal Index As Integer, ByVal Cancel As Boolean)
 'And it fire FakeExit event for ActiveControl at that time.
 Public Event FakeExit(ByVal Index As Integer)
 
+
+Private Sub Class_Initialize()
+    set childguicontrols = new collection
+    blnisregistered = false
+    blnsametype = false
+    set mytypename = ""
+End Sub
+
+'==================================================================
+Private Sub Class_Terminate()
+    If (blnisregistered = True) Or (Not (childguicontrols Is Nothing)) Then
+        Me.Clear
+    End If
+End Sub
+
+'======== Property / Method definition =============================
+
+'---( Add method )------------------------------------------------
+'Add control to become array to collection.
+public sub Add(byval NewCtrl as object)
+    If (blnisregistered = False) Then
+        Select Case TypeName(NewCtrl)
+            Case "Label", "CommandButton", "TextBox", "CheckBox", _
+                 "OptionButton", "ToggleButton", "ComboBox"
+                'Add to Collection
+                childguicontrol.add NewCtrl
+            Case Else
+                'do not add the non-supported control
+        End Select
+    Else
+        'Because Rgst method is executed, I do not add it.
+    End If
+End Sub
+
+
 'By MultiPage(Change),
 'it fire FakeExit event of ActiveControl in the container control.
 'OldPage: Previous page number of Page_Change event.
@@ -80,22 +130,23 @@ Friend Sub Change4FakeExit(ByVal Index As Integer, ByVal OldPage As Integer)
 'Dim Index2 As Integer
 'Dim ContainerMlt As MSForms.MultiPage
 'Dim ActCtrl As Object
-
-'    Set ContainerMlt = colBpcaContainerGrp(Index)
-    
-'    On Error Resume Next
-'    Set ActCtrl = ContainerMlt.Pages(OldPage).ActiveControl
-'    On Error GoTo 0
-    
-'    If Not (ActCtrl Is Nothing) Then
-'        Index2 = Me.getIndex(ActCtrl.Name)
-'        If (Index2 <> -1) Then
-'            RaiseEvent FakeExit(Index2)
-'        End If
-'    End If
-    
-'    Set ContainerMlt = Nothing
+'-----
+    '    Set ContainerMlt = colBpcaContainerGrp(Index)
+        
+    '    On Error Resume Next
+    '    Set ActCtrl = ContainerMlt.Pages(OldPage).ActiveControl
+    '    On Error GoTo 0
+        
+    '    If Not (ActCtrl Is Nothing) Then
+    '        Index2 = Me.getIndex(ActCtrl.Name)
+    '        If (Index2 <> -1) Then
+    '            RaiseEvent FakeExit(Index2)
+    '        End If
+    '    End If
+        
+    '    Set ContainerMlt = Nothing
 '    Set ActCtrl = Nothing
+'-----
 End Sub
 
 
@@ -107,29 +158,31 @@ Friend Sub Exit4FakeExit(ByVal Index As Integer)
 'Dim ContainerFra As MSForms.Frame
 'Dim ActCtrl As Object
     
-'    Select Case TypeName(colBpcaContainerGrp(Index))
-'      Case "MultiPage"
-'        Set ContainerMlt = colBpcaContainerGrp(Index)
-'        On Error Resume Next
-'        Set ActCtrl = ContainerMlt.Pages(ContainerMlt.Value).ActiveControl
-'        On Error GoTo 0
-'      Case "Frame"
-'        Set ContainerFra = colBpcaContainerGrp(Index)
-'        On Error Resume Next
-'        Set ActCtrl = ContainerFra.ActiveControl
-'        On Error GoTo 0
-'    End Select
-    
-'    If Not (ActCtrl Is Nothing) Then
-'        Index2 = Me.getIndex(ActCtrl.Name)
-'        If (Index2 <> -1) Then
-'            RaiseEvent FakeExit(Index2)
-'        End If
-'    End If
-    
-'    Set ContainerMlt = Nothing
-'    Set ContainerFra = Nothing
-'    Set ActCtrl = Nothing
+'------
+    '    Select Case TypeName(colBpcaContainerGrp(Index))
+    '      Case "MultiPage"
+    '        Set ContainerMlt = colBpcaContainerGrp(Index)
+    '        On Error Resume Next
+    '        Set ActCtrl = ContainerMlt.Pages(ContainerMlt.Value).ActiveControl
+    '        On Error GoTo 0
+    '      Case "Frame"
+    '        Set ContainerFra = colBpcaContainerGrp(Index)
+    '        On Error Resume Next
+    '        Set ActCtrl = ContainerFra.ActiveControl
+    '        On Error GoTo 0
+    '    End Select
+        
+    '    If Not (ActCtrl Is Nothing) Then
+    '        Index2 = Me.getIndex(ActCtrl.Name)
+    '        If (Index2 <> -1) Then
+    '            RaiseEvent FakeExit(Index2)
+    '        End If
+    '    End If
+        
+    '    Set ContainerMlt = Nothing
+    '    Set ContainerFra = Nothing
+    '    Set ActCtrl = Nothing
+'-----
 End Sub
 '===================================================================
 ' Event excitation method to be called from clsBpcaCh
