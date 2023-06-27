@@ -50,13 +50,17 @@ Option Explicit
 '-----
 
 'Private ChildController() As ControlController  'To pass Manager as controller arg, cause no OOP?
-private ParentManager as controllermanager      'Parent Manager reference. | Maybe a group if multiple.
-private ChildControllers as controlcontroller()
-private ChildGUIControls as collection
 
-private MyTypeName as string
-private blnSameType as boolean      '
-private blnIsRegistered as boolean  'Registration Flag
+Private ParentManager As ControllerManager      'Parent Manager reference. | Maybe a group if multiple.
+
+Private ChildControllers() As ControlController
+Private ChildGUIControls As Collection
+
+private ChildFormManagers() as ControllerManagers
+
+Private MyTypeName As String
+Private blnSameType As Boolean      '
+Private blnIsRegistered As Boolean  'Registration Flag
 
 'TODO: this would solve the issue of tracking controller objects when elevating a manager's event.
 
@@ -89,15 +93,15 @@ Public Event FakeExit(ByVal Index As Integer)
 
 
 Private Sub Class_Initialize()
-    set childguicontrols = new collection
-    blnisregistered = false
-    blnsametype = false
-    set mytypename = ""
+    Set ChildGUIControls = New Collection
+    blnIsRegistered = False
+    blnSameType = False
+    MyTypeName = ""
 End Sub
 
 '==================================================================
 Private Sub Class_Terminate()
-    If (blnisregistered = True) Or (Not (childguicontrols Is Nothing)) Then
+    If (blnIsRegistered = True) Or (Not (ChildGUIControls Is Nothing)) Then
         Me.Clear
     End If
 End Sub
@@ -106,19 +110,47 @@ End Sub
 
 '---( Add method )------------------------------------------------
 'Add control to become array to collection.
-public sub Add(byval NewCtrl as object)
-    If (blnisregistered = False) Then
+Public Sub Add(ByVal NewCtrl As Object)
+    If (blnIsRegistered = False) Then
         Select Case TypeName(NewCtrl)
             Case "Label", "CommandButton", "TextBox", "CheckBox", _
                  "OptionButton", "ToggleButton", "ComboBox"
                 'Add to Collection
-                childguicontrol.add NewCtrl
+                childguicontrol.Add NewCtrl
             Case Else
                 'do not add the non-supported control
         End Select
     Else
         'Because Rgst method is executed, I do not add it.
     End If
+End Sub
+
+'---( Clear method )-----------------------------
+Public Sub Clear()
+Dim i As Integer
+Dim j As Integer
+
+    If (blnRgst = True) Then
+        ;For i = 1 To ChildGUIControls.Count
+            ChildControllers(i).Clear
+        Next i
+        
+        On Error Resume Next
+        j = -1
+        j = LBound(ChildFormManagers)
+        On Error GoTo 0
+        For i = 1 To j
+            ChildFormManagers(i).Clear
+        Next i
+    End If
+    
+    Set ChildGUIControls = Nothing
+    Erase ChildControllers
+
+    Set colBpcaContainerGrp = Nothing
+    Erase ChildFormManagers
+
+    blnRgst = False
 End Sub
 
 
@@ -259,6 +291,7 @@ Friend Sub RaiseMouseUp(ByVal Index As Integer, _
                         ByVal Y As Single)
     RaiseEvent MouseUp(Index, Button, Shift, X, Y)
 End Sub
+
 
 
 

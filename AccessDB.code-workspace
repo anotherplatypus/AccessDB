@@ -5,6 +5,9 @@
 		}
 	],
 	"settings": {
-		"vbsLanguageServer.trace.server": "verbose"
+		"vbsLanguageServer.trace.server": "verbose",
+		"cSpell.words": [
+			"Bpca"
+		]
 	}
 }
