@@ -1,3 +1,4 @@
+'@IgnoreModule UseMeaningfulName
 Option Compare Database
 Option Explicit
 '@Folder(Database7.Controllers)
@@ -56,7 +57,7 @@ Private ParentManager As ControllerManager      'Parent Manager reference. | May
 Private ChildControllers() As ControlController
 Private ChildGUIControls As Collection
 
-private ChildFormManagers() as ControllerManagers
+Private ChildFormManagers() As ControllerManager
 
 Private MyTypeName As String
 Private blnSameType As Boolean      '
@@ -96,7 +97,7 @@ Private Sub Class_Initialize()
     Set ChildGUIControls = New Collection
     blnIsRegistered = False
     blnSameType = False
-    MyTypeName = ""
+    MyTypeName = vbNullString
 End Sub
 
 '==================================================================
@@ -116,22 +117,93 @@ Public Sub Add(ByVal NewCtrl As Object)
             Case "Label", "CommandButton", "TextBox", "CheckBox", _
                  "OptionButton", "ToggleButton", "ComboBox"
                 'Add to Collection
-                childguicontrol.Add NewCtrl
+                ChildGUIControls.Add NewCtrl
             Case Else
                 'do not add the non-supported control
         End Select
     Else
         'Because Rgst method is executed, I do not add it.
+        Debug.Print NewCtrl
     End If
 End Sub
+
+'---( Rgst method )------------------------------------------------
+'I set the control that enrolled in collection in the array of the clsBpcaCh class.
+'I receive the classification of the event to produce by an argument.
+Public Sub Rgst(ByVal NewEvent As BPCA_Event, Optional ByVal AllType As Boolean = False)
+Dim i As Integer
+Dim blnERR As Boolean
+    If (blnisregistered = True) Then
+        'Because Rgst method is executed, I do not handle it.
+        Exit Sub
+    ElseIf (childguicontrols.Count = 0) Then
+        blnisregistered = False
+        Exit Sub
+    Else
+    End If
+    
+    blnAllType = AllType
+    blnERR = False
+        
+    'In the case of "AllType=False", The control after the second
+    'is the same as a type of the top control.
+    MyTypeName = TypeName(childguicontrols(1))
+    For i = 2 To childguicontrols.Count
+        If (MyTypeName <> TypeName(childguicontrols(i))) Then
+            If (blnAllType = False) Then
+                blnERR = True
+            End If
+        End If
+    Next i
+    If (blnERR = True) Then
+        Exit Sub
+    End If
+    
+    ReDim ChildControllers(1 To childguicontrols.Count)
+    For i = 1 To childguicontrols.Count
+        Set ChildControllers(i) = New controlcontroller
+        With ChildControllers(i)
+            'It perform [EventSet] first to judge necessity or not
+            'of [ConnectToConnectionPoint].
+            .EventSet = NewEvent
+            .Item = childguicontrols(i)
+            .Index = i
+            .Parent = Me
+        End With
+      
+      Call prvContainerCheck(childguicontrols(i))
+    Next i
+    blnisregistered = True
+
+    If (colBpcaContainerGrp.Count = 0) Then
+        Exit Sub
+    ElseIf ((NewEvent And BPCA2_FakeExit) = BPCA2_FakeExit) Then
+        ReDim clsBpcaContainerCh(1 To colBpcaContainerGrp.Count)
+        For i = 1 To colBpcaContainerGrp.Count
+          Set clsBpcaContainerCh(i) = New clsBpcaCh
+          With clsBpcaContainerCh(i)
+              'It perform [EventSet] first to judge necessity or not
+              'of [ConnectToConnectionPoint].
+              .EventSet = BPCA_Exit + BPCA_Change
+              .Item = colBpcaContainerGrp(i)
+              .Index = i
+              .Parent = Me
+          End With
+    Next i
+    Else
+        'No designation of FakeExit
+    End If
+End Sub
+
 
 '---( Clear method )-----------------------------
 Public Sub Clear()
 Dim i As Integer
 Dim j As Integer
-
-    If (blnRgst = True) Then
-        ;For i = 1 To ChildGUIControls.Count
+    
+    
+    If (blnIsRegistered = True) Then
+        For i = 1 To ChildGUIControls.Count
             ChildControllers(i).Clear
         Next i
         
@@ -147,10 +219,11 @@ Dim j As Integer
     Set ChildGUIControls = Nothing
     Erase ChildControllers
 
-    Set colBpcaContainerGrp = Nothing
+    'Donnie change is moving the array of container controls to the container manager
+    'This wasn't decided on the fly but it's not well thought out yet either.
     Erase ChildFormManagers
 
-    blnRgst = False
+    blnIsRegistered = False
 End Sub
 
 
@@ -291,7 +364,5 @@ Friend Sub RaiseMouseUp(ByVal Index As Integer, _
                         ByVal Y As Single)
     RaiseEvent MouseUp(Index, Button, Shift, X, Y)
 End Sub
-
-
 
 
