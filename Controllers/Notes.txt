@@ -1,0 +1,36 @@
+'Private ChildController() As ControlController  'To pass Manager as controller arg, cause no OOP?
+Private ParentManager As ControllerManager      'Parent Manager reference. | Maybe a group if multiple.
+Private ChildControllers() As ControlController
+Private ChildGUIControls As Collection
+
+Private MyTypeName As String
+Private blnSameType As Boolean      '
+Private blnIsRegistered As Boolean  'Registration Flag
+
+
+
+Private clsBpcaCtrlCh() As clsBpcaCh    'Child class
+Private colBpcaCtrlGrp As Collection    'Storage collection of Controls
+
+Private clsBpcaContainerCh() As clsBpcaCh   'Child class (for Frame/MultiPage)
+Private colBpcaContainerGrp As Collection   'Storage collection of Controls (for Frame/MultiPage)
+
+Private MyTypeName As String
+Private blnAllType As Boolean
+Private blnRgst As Boolean      'Registration flag
+
+
+
+' ChildController() As ControlController  'To pass Manager as controller arg, cause no OOP?
+
+
+ParentManager As ControllerManager          
+ChildControllers() As ControlController     clsBpcaCtrlCh() As clsBpcaCh    'Child class
+ChildGUIControls As Collection              colBpcaCtrlGrp As Collection    'Storage collection of Controls
+
+ChildFormManagers() as ControllerManager    clsBpcaContainerCh() As clsBpcaCh'Child class for subcontainers.  'Objects using their Control.Controls collection
+
+
+MyTypeName As String                        MyTypeName As String
+blnSameType As Boolean                      blnAllType As Boolean
+blnIsRegistered As Boolean                  blnRgst As Boolean      'Registration flag
