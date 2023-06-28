@@ -24,12 +24,17 @@ Private blnRgst As Boolean      'Registration flag
 ' ChildController() As ControlController  'To pass Manager as controller arg, cause no OOP?
 
 
+------------------------------------------
+
 ParentManager As ControllerManager          
+
 ChildControllers() As ControlController     clsBpcaCtrlCh() As clsBpcaCh    'Child class
 ChildGUIControls As Collection              colBpcaCtrlGrp As Collection    'Storage collection of Controls
 
 ChildFormManagers() as ControllerManager    clsBpcaContainerCh() As clsBpcaCh'Child class for subcontainers.  'Objects using their Control.Controls collection
+ChildFormControls as Collection             colBpcaContainerGrp As Collection   'Storage collection of Controls (for Frame/MultiPage)
 
+------------------------------------------
 
 MyTypeName As String                        MyTypeName As String
 blnSameType As Boolean                      blnAllType As Boolean

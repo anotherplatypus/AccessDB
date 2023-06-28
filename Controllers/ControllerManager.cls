@@ -58,6 +58,7 @@ Private ChildControllers() As ControlController
 Private ChildGUIControls As Collection
 
 Private ChildFormManagers() As ControllerManager
+private ChildFormControls as Collection         'Storage collection of Controls (for Frame/MultiPage)
 
 Private MyTypeName As String
 Private blnSameType As Boolean      '
@@ -95,6 +96,8 @@ Public Event FakeExit(ByVal Index As Integer)
 
 Private Sub Class_Initialize()
     Set ChildGUIControls = New Collection
+    set ChildFormControls = new Collection
+
     blnIsRegistered = False
     blnSameType = False
     MyTypeName = vbNullString
@@ -133,24 +136,24 @@ End Sub
 Public Sub Rgst(ByVal NewEvent As BPCA_Event, Optional ByVal AllType As Boolean = False)
 Dim i As Integer
 Dim blnERR As Boolean
-    If (blnisregistered = True) Then
+    If (blnIsRegistered = True) Then
         'Because Rgst method is executed, I do not handle it.
         Exit Sub
-    ElseIf (childguicontrols.Count = 0) Then
-        blnisregistered = False
+    ElseIf (ChildGUIControls.Count = 0) Then
+        blnIsRegistered = False
         Exit Sub
     Else
     End If
     
-    blnAllType = AllType
+    AllType = AllType
     blnERR = False
         
     'In the case of "AllType=False", The control after the second
     'is the same as a type of the top control.
-    MyTypeName = TypeName(childguicontrols(1))
-    For i = 2 To childguicontrols.Count
-        If (MyTypeName <> TypeName(childguicontrols(i))) Then
-            If (blnAllType = False) Then
+    MyTypeName = TypeName(ChildGUIControls(1))
+    For i = 2 To ChildGUIControls.Count
+        If (MyTypeName <> TypeName(ChildGUIControls(i))) Then
+            If (AllType = False) Then
                 blnERR = True
             End If
         End If
@@ -159,33 +162,33 @@ Dim blnERR As Boolean
         Exit Sub
     End If
     
-    ReDim ChildControllers(1 To childguicontrols.Count)
-    For i = 1 To childguicontrols.Count
-        Set ChildControllers(i) = New controlcontroller
+    ReDim ChildControllers(1 To ChildGUIControls.Count)
+    For i = 1 To ChildGUIControls.Count
+        Set ChildControllers(i) = New ControlController
         With ChildControllers(i)
             'It perform [EventSet] first to judge necessity or not
             'of [ConnectToConnectionPoint].
             .EventSet = NewEvent
-            .Item = childguicontrols(i)
+            .Item = ChildGUIControls(i)
             .Index = i
             .Parent = Me
         End With
       
-      Call prvContainerCheck(childguicontrols(i))
+      Call prvContainerCheck(ChildGUIControls(i))
     Next i
-    blnisregistered = True
+    blnIsRegistered = True
 
-    If (colBpcaContainerGrp.Count = 0) Then
+    If (ChildFormControls.Count = 0) Then
         Exit Sub
     ElseIf ((NewEvent And BPCA2_FakeExit) = BPCA2_FakeExit) Then
-        ReDim clsBpcaContainerCh(1 To colBpcaContainerGrp.Count)
-        For i = 1 To colBpcaContainerGrp.Count
-          Set clsBpcaContainerCh(i) = New clsBpcaCh
-          With clsBpcaContainerCh(i)
+        ReDim ChildFormManagers(1 To ChildFormControls.Count)
+        For i = 1 To ChildFormControls.Count    'TODO: I don't like how this is making a controller, switch later to manager
+          Set ChildFormManagers(i) = New controlcontroller
+          With ChildFormManagers(i)
               'It perform [EventSet] first to judge necessity or not
               'of [ConnectToConnectionPoint].
               .EventSet = BPCA_Exit + BPCA_Change
-              .Item = colBpcaContainerGrp(i)
+              .Item = ChildFormManagers(i)
               .Index = i
               .Parent = Me
           End With
@@ -195,6 +198,54 @@ Dim blnERR As Boolean
     End If
 End Sub
 
+Private Sub prvContainerCheck(ByRef Ctrl As Object)
+Dim j As Integer
+Dim ParentCtrl As Object
+Dim blnCheck As Boolean
+Dim ParentType As String
+    
+    ' -- Fixed a bug in Ver4.0 --
+    ' For controls on the worksheet, the control specifications are as follows.
+    '   [ Worksheet obeject .OLEObjects(Control Name).Object ]
+    ' However, since there is no Parent property in Object, a runtime error occurs (Ver3.0-3.1).
+    ' In addition, OLEObjects(Control Name) has a Parent property.
+    On Error Resume Next
+    ParentType = ""
+    ParentType = TypeName(Ctrl.Parent)
+    On Error GoTo 0
+    
+    'Select Case TypeName(Ctrl.Parent)   '(Ver3.0-3.1) Corrected in Ver4.0 (added the above processing)
+    Select Case ParentType
+      Case "Frame"
+        Set ParentCtrl = Ctrl.Parent
+      Case "Page"
+        'The parent of the controls in MultiPage is Page.
+        'The parent of Page is MultiPage.
+        Set ParentCtrl = Ctrl.Parent.Parent
+      Case Else
+        'Blank for controls on worksheet
+        Exit Sub
+    End Select
+    
+    If (ChildFormControls.Count = 0) Then
+        ChildFormControls.Add ParentCtrl
+    Else
+        blnCheck = False
+        For j = 1 To ChildFormControls.Count
+            If (ChildFormControls(j) Is ParentCtrl) Then
+                blnCheck = True
+                Exit For
+            End If
+        Next j
+        If (blnCheck = False) Then
+            'TODO: this likely needs to be moved to the parent ControlManager.  6/28/23
+            'The command will be ParentManager.add ParentCtrl
+            ChildFormControls.Add ParentCtrl
+        End If
+    End If
+
+    Set ParentCtrl = Nothing
+End Sub
 
 '---( Clear method )-----------------------------
 Public Sub Clear()
@@ -236,7 +287,7 @@ Friend Sub Change4FakeExit(ByVal Index As Integer, ByVal OldPage As Integer)
 'Dim ContainerMlt As MSForms.MultiPage
 'Dim ActCtrl As Object
 '-----
-    '    Set ContainerMlt = colBpcaContainerGrp(Index)
+    '    Set ContainerMlt = ChildFormManagers(Index)
         
     '    On Error Resume Next
     '    Set ActCtrl = ContainerMlt.Pages(OldPage).ActiveControl
@@ -264,14 +315,14 @@ Friend Sub Exit4FakeExit(ByVal Index As Integer)
 'Dim ActCtrl As Object
     
 '------
-    '    Select Case TypeName(colBpcaContainerGrp(Index))
+    '    Select Case TypeName(ChildFormManagers(Index))
     '      Case "MultiPage"
-    '        Set ContainerMlt = colBpcaContainerGrp(Index)
+    '        Set ContainerMlt = ChildFormManagers(Index)
     '        On Error Resume Next
     '        Set ActCtrl = ContainerMlt.Pages(ContainerMlt.Value).ActiveControl
     '        On Error GoTo 0
     '      Case "Frame"
-    '        Set ContainerFra = colBpcaContainerGrp(Index)
+    '        Set ContainerFra = ChildFormManagers(Index)
     '        On Error Resume Next
     '        Set ActCtrl = ContainerFra.ActiveControl
     '        On Error GoTo 0
@@ -364,5 +415,7 @@ Friend Sub RaiseMouseUp(ByVal Index As Integer, _
                         ByVal Y As Single)
     RaiseEvent MouseUp(Index, Button, Shift, X, Y)
 End Sub
+
+
 
 
